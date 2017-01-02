@@ -7,6 +7,8 @@ use \Psr\Http\Message\ResponseInterface;
 use \Psr\Http\Message\ServerRequestInterface;
 
 class App {
+    // TODO see about including https://github.com/paragonie/anti-csrf
+
     //HTTP
     private $request;
     private $response;
@@ -23,7 +25,7 @@ class App {
             $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
         );
         $this->response = new \Zend\Diactoros\Response\HtmlResponse("");
-        //$this->response->getBody()->write(print_r($this->request, TRUE));
+            // https://zendframework.github.io/zend-diactoros/custom-responses/
         $this->emitter = new \Zend\Diactoros\Response\SapiEmitter();
 
         // Routing
@@ -31,33 +33,7 @@ class App {
             \FastRoute\simpleDispatcher([$this,'populateRoutes']);
         $this->routeData = $this->collector->getParsedRoutes();
         $this->collector = NULL;    // we don't need it any more
-        //print_r($this->routeData);
-
     } //constructor
-
-    function populateRoutes(\FastRoute\RouteCollector $r) {
-        $this->collector = $r;
-        $r->addRoute('GET', '/users', 'get_all_users_handler');
-        // {id} must be a number (\d+)
-        $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler', 'user');
-        // The /{title} suffix is optional
-        $r->addRoute('GET', '/articles/{id:\d+}[/{title}]', 'get_article_handler',
-                        'article');
-    }
-
-    /**
-     * Returns the target, the path to be checked against the available routes
-     *
-     * By default, pulls from the "p" query parameter.
-     * Override in subclasses to change where the target comes from.
-     */
-    public function getTarget() {
-        $qps = $this->request->getQueryParams();
-        if(!isset($qps['p'])) {
-            throw new \Exception('No query');
-        }
-        return $qps['p'];
-    } //getTarget
 
     /**
      * Dispatches to the request and returns a result
@@ -118,6 +94,32 @@ EOD
         // Fire away!
         $this->emitter->emit($this->response);
     } //run
+
+    // === Functions to be overridden in subclasses ========================
+
+    function populateRoutes(\FastRoute\RouteCollector $r) {
+        $this->collector = $r;
+        $r->addRoute('GET', '/users', 'get_all_users_handler');
+        // {id} must be a number (\d+)
+        $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler', 'user');
+        // The /{title} suffix is optional
+        $r->addRoute('GET', '/articles/{id:\d+}[/{title}]', 'get_article_handler',
+                        'article');
+    }
+
+    /**
+     * Returns the target, the path to be checked against the available routes
+     *
+     * By default, pulls from the "p" query parameter.
+     * Override in subclasses to change where the target comes from.
+     */
+    public function getTarget() {
+        $qps = $this->request->getQueryParams();
+        if(!isset($qps['p'])) {
+            throw new \Exception('No query');
+        }
+        return $qps['p'];
+    } //getTarget
 
     /**
      * @route('GET','/users')
