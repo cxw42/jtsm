@@ -1,0 +1,14 @@
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "../FastRoute"
+        }
+    ],
+
+    "require": {
+        "nikic/fast-route": "dev-master",
+        "crodas/notoj": "^1.4",
+        "zendframework/zend-diactoros": "^1.3"
+    }
+}

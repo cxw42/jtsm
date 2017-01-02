@@ -1,0 +1,8 @@
+/vendor/
+/docs/
+
+# Editor backup files
+.*.swp
+*~
+~*
+
