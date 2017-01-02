@@ -1,26 +1,30 @@
-<?php namespace FRTest;
+<?php
 
-# Modified from the FastRoute README.md
-require 'vendor/autoload.php';
+namespace FRTest;
 
-use \Psr\Http\Message\ResponseInterface;
-use \Psr\Http\Message\ServerRequestInterface;
+define('IN_JTSM', TRUE);
+
+require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/config.php';
 
 class App {
     // TODO see about including https://github.com/paragonie/anti-csrf
 
-    //HTTP
+    // HTTP
     private $request;
     private $response;
     private $emitter;
 
-    //Routing
+    // Routing
     private $collector;
     private $dispatcher;
     private $routeData;
 
+    // Templating
+    private $twig;
+
     public function __construct() {
-        // HTTP
+        // Set up HTTP interaction
         $this->request = \Zend\Diactoros\ServerRequestFactory::fromGlobals(
             $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
         );
@@ -28,11 +32,16 @@ class App {
             // https://zendframework.github.io/zend-diactoros/custom-responses/
         $this->emitter = new \Zend\Diactoros\Response\SapiEmitter();
 
-        // Routing
+        // Set up routing
         $this->dispatcher =
             \FastRoute\simpleDispatcher([$this,'populateRoutes']);
         $this->routeData = $this->collector->getParsedRoutes();
         $this->collector = NULL;    // we don't need it any more
+
+        // Set up templates
+        global $jtsm_template_path;
+        $loader = new \Twig_Loader_Filesystem($jtsm_template_path);
+        $this->twig = new \Twig_Environment($loader);
     } //constructor
 
     /**
@@ -63,7 +72,8 @@ EOD
 
             switch ($routeInfo[0]) {
                 case \FastRoute\Dispatcher::NOT_FOUND:
-                    $this->response = $this->response->withStatus(404, 'Not found');
+                    $this->response =
+                        $this->response->withStatus(404, 'Not found');
                     break;
                 case \FastRoute\Dispatcher::METHOD_NOT_ALLOWED:
                     $allowedMethods = $routeInfo[1];
@@ -73,8 +83,8 @@ EOD
                 case \FastRoute\Dispatcher::FOUND:
                     $handler = $routeInfo[1];
                     $vars = $routeInfo[2];
-                    $this->response->getBody()->write("Got route to $handler\n" .
-                        print_r($vars, TRUE));
+                    $this->response->getBody()->write(
+                        "Got route to $handler\n" . print_r($vars, TRUE));
                     break;
             }
         } //endif got_target
@@ -93,7 +103,7 @@ EOD
 
         // Fire away!
         $this->emitter->emit($this->response);
-    } //run
+    } //run()
 
     // === Functions to be overridden in subclasses ========================
 
@@ -103,9 +113,9 @@ EOD
         // {id} must be a number (\d+)
         $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler', 'user');
         // The /{title} suffix is optional
-        $r->addRoute('GET', '/articles/{id:\d+}[/{title}]', 'get_article_handler',
-                        'article');
-    }
+        $r->addRoute('GET', '/articles/{id:\d+}[/{title}]',
+            'get_article_handler', 'article');
+    } //populateRoutes()
 
     /**
      * Returns the target, the path to be checked against the available routes
@@ -119,7 +129,9 @@ EOD
             throw new \Exception('No query');
         }
         return $qps['p'];
-    } //getTarget
+    } //getTarget()
+
+    // --- Handler ---
 
     /**
      * @route('GET','/users')
