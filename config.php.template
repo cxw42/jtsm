@@ -2,9 +2,9 @@
 // Copy this file to config.php and update the values to match your config.
 namespace FRTest;
 
-defined('IN_JTSM') or die();
+defined('JTSM') or die();
 
-$jtsm_template_path = __DIR__ . '/templates';
+$jtsm_template_path = JTSM . 'templates';
 
-// vi: set ts=4 sts=4 sw=4 et ai syntax=php: //
+// vi: set ts=4 sts=4 sw=4 et ai syntax=php ff=unix: //
 

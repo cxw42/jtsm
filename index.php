@@ -2,23 +2,23 @@
 
 namespace FRTest;
 
-define('IN_JTSM', TRUE);
+define('JTSM', __DIR__ . DIRECTORY_SEPARATOR);
 
-require __DIR__ . '/vendor/autoload.php';
-require __DIR__ . '/config.php';
+require JTSM . 'vendor/autoload.php';
+require JTSM . 'config.php';
 
 class App {
     // TODO see about including https://github.com/paragonie/anti-csrf
 
     // HTTP
-    private $request;
-    private $response;
-    private $emitter;
+    protected $request;
+    protected $response;
+    protected $emitter;
 
     // Routing
     private $collector;
     private $dispatcher;
-    private $routeData;
+    protected $generator;
 
     // Templating
     private $twig;
@@ -35,14 +35,28 @@ class App {
         // Set up routing
         $this->dispatcher =
             \FastRoute\simpleDispatcher([$this,'populateRoutes']);
-        $this->routeData = $this->collector->getParsedRoutes();
+        $routeData = $this->collector->getParsedRoutes();
+        $this->generator = new \FastRoute\RouteGenerator\Std($routeData);
         $this->collector = NULL;    // we don't need it any more
 
         // Set up templates
         global $jtsm_template_path;
         $loader = new \Twig_Loader_Filesystem($jtsm_template_path);
         $this->twig = new \Twig_Environment($loader);
+
+        // Templates can generate routes with gen()
+        $fn = new \Twig_SimpleFunction('gen', [$this, 'generateRoute'],
+            [ 'is_variadic' => 'true', 'is_safe' => ['html'], ]);
+        $this->twig->addFunction($fn);
+
     } //constructor
+
+    /**
+     * Interface from templates to the route generator
+     */
+    public function generateRoute($routeName, $values = []) {
+        return $this->generator->gen($routeName, $values);
+    } //generateRoute()
 
     /**
      * Dispatches to the request and returns a result
@@ -83,8 +97,9 @@ EOD
                 case \FastRoute\Dispatcher::FOUND:
                     $handler = $routeInfo[1];
                     $vars = $routeInfo[2];
-                    $this->response->getBody()->write(
-                        "Got route to $handler\n" . print_r($vars, TRUE));
+                    //$this->response->getBody()->write(
+                    //    "Got route to $handler\n" . print_r($vars, TRUE));
+                    $this->$handler($vars);
                     break;
             }
         } //endif got_target
@@ -107,14 +122,58 @@ EOD
 
     // === Functions to be overridden in subclasses ========================
 
+    // TODO add a function to create a route generator so the subclass can
+    // choose, e.g., a cached generator
+
+    /**
+     * Fill in the routes we can respond to.
+     *
+     * This implementation uses annotations to determine the routes.
+     * The route name is the name of the function
+     * (TODO strip `do_` prefix if present).
+     * The route string, as in FastRoute, is the parameter of AT-`route`.
+     * The route method is GET unless another method is specified with
+     * `@routemethod`.  For example (with AT replaced with an at sign):
+     *
+     * ```php
+     * /**
+     *  * Route foo
+     *  *
+     *  * AT-routemethod POST
+     *  * AT-route /foo/{id:\d+}
+     *  ...
+     *  function foo($values=[]) { ... }
+     * ```
+     */
     function populateRoutes(\FastRoute\RouteCollector $r) {
         $this->collector = $r;
+        /*
         $r->addRoute('GET', '/users', 'get_all_users_handler');
         // {id} must be a number (\d+)
         $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler', 'user');
         // The /{title} suffix is optional
         $r->addRoute('GET', '/articles/{id:\d+}[/{title}]',
             'get_article_handler', 'article');
+        */
+        $cls = new \Notoj\ReflectionClass($this);
+        foreach($cls->getMethods() as $method) {
+            $anns = $method->getAnnotations();
+            //$this->response->getBody()->write("<pre>" . print_r($anns, TRUE) . "</pre>");
+
+            if(!$anns->has('route')) { continue; }
+
+            $route = trim($anns->getOne('route')->getArg(0));
+            //$this->response->getBody()->write("<pre>\n\nROUTE: " . print_r($route, TRUE) . "</pre>");
+
+            if($anns->has('routemethod')) {
+                $http_method = trim($anns->getOne('routemethod')->getArg(0));
+                //$this->response->getBody()->write("<pre>\n\nMETHOD: " . print_r($http_method, TRUE) . "</pre>");
+            } else {
+                $http_method = 'GET';
+            }
+
+            $r->addRoute($http_method, $route, $method->getName());
+        } //foreach $method
     } //populateRoutes()
 
     /**
@@ -131,12 +190,21 @@ EOD
         return $qps['p'];
     } //getTarget()
 
-    // --- Handler ---
+    // === Test routes =====================================================
 
     /**
-     * @route('GET','/users')
+     * @route /users
      */
-    function TODO() {
+    function users() {
+        $this->response->getBody()->write("users!\n");
+    }
+
+    /**
+     * @route /foo/{id}
+     */
+    function things($vars) {
+        $this->response->getBody()->write("things!\n" .
+            print_r($vars, TRUE));
     }
 
 } //App
