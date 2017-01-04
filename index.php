@@ -23,11 +23,32 @@ class App {
     // Templating
     private $twig;
 
-    public function __construct() {
+    /**
+     * Make a new instance to handle requests.
+     * If any of the parameters are NULL (the default), the corresponding
+     * superglobals are used.
+     *
+     * @param $server $_SERVER or equivalent
+     * @param $get $_GET or equivalent
+     * @param $post $_POST or equivalent
+     * @param $cookie $_COOKIE or equivalent
+     * @param $files $_FILES or equivalent
+     */
+    public function __construct($server=NULL, $get=NULL, $post=NULL,
+                                $cookie=NULL, $files=NULL) {
+        // Process defaults
+        if(is_null($server))    { $server = $_SERVER; }
+        if(is_null($get))       { $get = $_GET; }
+        if(is_null($post))      { $post = $_POST; }
+        if(is_null($cookie))    { $cookie = $_COOKIE; }
+        if(is_null($files))     { $files = $_FILES; }
+
+        //error_log("Howdy!");  // Debugging message to the console
         // Set up HTTP interaction
         $this->request = \Zend\Diactoros\ServerRequestFactory::fromGlobals(
-            $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
+            $server, $get, $post, $cookie, $files
         );
+
         $this->response = new \Zend\Diactoros\Response\HtmlResponse("");
             // https://zendframework.github.io/zend-diactoros/custom-responses/
         $this->emitter = new \Zend\Diactoros\Response\SapiEmitter();
@@ -47,6 +68,7 @@ class App {
         // Templates can generate routes with gen()
         $fn = new \Twig_SimpleFunction('gen', [$this, 'generateRoute'],
             [ 'is_variadic' => 'true', 'is_safe' => ['html'], ]);
+            // is_safe: output should be included raw in the html
         $this->twig->addFunction($fn);
 
     } //constructor
@@ -147,27 +169,15 @@ EOD
      */
     function populateRoutes(\FastRoute\RouteCollector $r) {
         $this->collector = $r;
-        /*
-        $r->addRoute('GET', '/users', 'get_all_users_handler');
-        // {id} must be a number (\d+)
-        $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler', 'user');
-        // The /{title} suffix is optional
-        $r->addRoute('GET', '/articles/{id:\d+}[/{title}]',
-            'get_article_handler', 'article');
-        */
         $cls = new \Notoj\ReflectionClass($this);
         foreach($cls->getMethods() as $method) {
             $anns = $method->getAnnotations();
-            //$this->response->getBody()->write("<pre>" . print_r($anns, TRUE) . "</pre>");
-
             if(!$anns->has('route')) { continue; }
 
             $route = trim($anns->getOne('route')->getArg(0));
-            //$this->response->getBody()->write("<pre>\n\nROUTE: " . print_r($route, TRUE) . "</pre>");
 
             if($anns->has('routemethod')) {
                 $http_method = trim($anns->getOne('routemethod')->getArg(0));
-                //$this->response->getBody()->write("<pre>\n\nMETHOD: " . print_r($http_method, TRUE) . "</pre>");
             } else {
                 $http_method = 'GET';
             }
@@ -209,8 +219,7 @@ EOD
 
 } //App
 
-$app = new App();
-$app->run();
+(new App())->run();
 
 // vi: set ts=4 sts=4 sw=4 et ai: //
 
