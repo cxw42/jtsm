@@ -63,7 +63,8 @@ class App {
         // Set up templates
         global $jtsm_template_path;
         $loader = new \Twig_Loader_Filesystem($jtsm_template_path);
-        $this->twig = new \Twig_Environment($loader);
+        $this->twig = new \Twig_Environment($loader,
+            ['cache' => JTSM . 'cache']);
 
         // Templates can generate routes with gen()
         $fn = new \Twig_SimpleFunction('gen', [$this, 'generateRoute'],
@@ -206,7 +207,9 @@ EOD
      * @route /users
      */
     function users() {
-        $this->response->getBody()->write("users!\n");
+        $this->response->getBody()->write(
+            $this->twig->render('users.twig.php')
+        );
     }
 
     /**
