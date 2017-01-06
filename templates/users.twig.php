@@ -5,5 +5,7 @@
 
 Howdy!
 
+Check out <a href="{{gen('user',id=42)}}">user 42!</a>
+
 {# vi: set ts=4 sts=4 sw=4 et ai ff=unix: #}
 

@@ -64,7 +64,10 @@ class App {
         global $jtsm_template_path;
         $loader = new \Twig_Loader_Filesystem($jtsm_template_path);
         $this->twig = new \Twig_Environment($loader,
-            ['cache' => JTSM . 'cache']);
+            ['cache' => JTSM . 'cache',
+            'debug' => TRUE,
+            'auto_reload' => TRUE]
+        );
 
         // Templates can generate routes with gen()
         $fn = new \Twig_SimpleFunction('gen', [$this, 'generateRoute'],
@@ -76,9 +79,11 @@ class App {
 
     /**
      * Interface from templates to the route generator
-     */
-    public function generateRoute($routeName, $values = []) {
-        return $this->generator->gen($routeName, $values);
+     */                                    // VVVVV required by Twig
+    public function generateRoute($routeName, array $values = []) {
+        error_log("For route $routeName with vars ". print_r($values,TRUE));
+        return '/?p=' . $this->generator->gen($routeName, $values);
+            // We use a query parameter rather than the REQUEST_URI
     } //generateRoute()
 
     /**
@@ -183,7 +188,8 @@ EOD
                 $http_method = 'GET';
             }
 
-            $r->addRoute($http_method, $route, $method->getName());
+            $r->addRoute($http_method, $route, $method->getName(),
+                $method->getName());
         } //foreach $method
     } //populateRoutes()
 
@@ -220,6 +226,13 @@ EOD
             print_r($vars, TRUE));
     }
 
+    /**
+     * @route /user/{id:\d+}
+     */
+    function user($vars) {
+        $this->response->getBody()->write(
+            $this->twig->render('user.twig.php', $vars));
+    }
 } //App
 
 (new App())->run();
