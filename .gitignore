@@ -9,4 +9,5 @@
 # Site-specific files
 /config.php
 /cache/
+/index/
 
