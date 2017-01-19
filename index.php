@@ -7,6 +7,12 @@ define('JTSM', __DIR__ . DIRECTORY_SEPARATOR);
 require JTSM . 'vendor/autoload.php';
 require JTSM . 'config.php';
 
+use ZendSearch\Lucene\Lucene;
+use ZendSearch\Lucene\Document as LDoc;
+use ZendSearch\Lucene\Document\Field as LField;
+use ZendSearch\Lucene\Index\Term as LTerm;
+#use ZendSearch\Lucene\MultiSearcher;
+
 class App {
     // TODO see about including https://github.com/paragonie/anti-csrf
 
@@ -232,6 +238,45 @@ EOD
     function user($vars) {
         $this->response->getBody()->write(
             $this->twig->render('user.twig.php', $vars));
+    }
+
+    /**
+     * Return the value of a string query parameter, or NULL.
+     * TODO add QPi, QP<whatever else> for other types
+     * @param $name the name of the query parameter
+     */
+    function QPs($name, $filtering = FILTER_UNSAFE_RAW) {
+        $parms = $this->request->getQueryParams();
+
+        if(array_key_exists($name, $parms) && (!is_null($parms[$name]))) {
+            $val = $parms[$name];
+            if(is_string($val) && (strlen($val)<65535)) {
+                // arbitrary length limit
+                $q = filter_var($parms[$name], $filtering);
+                if($q !== FALSE) {  // Valid query
+                    return $q;
+                }
+            }
+        }
+        return NULL;
+    } //QPs
+
+    /**
+     * @route /search
+     */
+    function search() {
+        $this->response->getBody()->write("<pre>" .
+            print_r($this->request->getQueryParams(), TRUE) . "</pre>\n");
+        $parms = $this->request->getQueryParams();
+        $vars = [];     // for the template
+
+        $q = $this->QPs('q');
+        if(!is_null($q) && (strlen($q)>0)) {
+            $vars['query'] = $q;
+        }
+
+        $this->response->getBody()->write(
+            $this->twig->render('search.twig.php',$vars));
     }
 } //App
 
