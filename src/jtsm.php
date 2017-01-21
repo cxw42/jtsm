@@ -2,17 +2,6 @@
 
 namespace JTSM;
 
-define('JTSM', __DIR__ . DIRECTORY_SEPARATOR);
-
-require JTSM . 'vendor/autoload.php';
-require JTSM . 'config.php';
-
-use ZendSearch\Lucene\Lucene;
-use ZendSearch\Lucene\Document as LDoc;
-use ZendSearch\Lucene\Document\Field as LField;
-use ZendSearch\Lucene\Index\Term as LTerm;
-#use ZendSearch\Lucene\MultiSearcher;
-
 class App {
     // TODO see about including https://github.com/paragonie/anti-csrf
 
@@ -27,7 +16,7 @@ class App {
     protected $generator;
 
     // Templating
-    private $twig;
+    protected $twig;
 
     /**
      * Make a new instance to handle requests.
@@ -40,7 +29,8 @@ class App {
      * @param $cookie $_COOKIE or equivalent
      * @param $files $_FILES or equivalent
      */
-    public function __construct($server=NULL, $get=NULL, $post=NULL,
+    public function __construct($site_root,
+                                $server=NULL, $get=NULL, $post=NULL,
                                 $cookie=NULL, $files=NULL) {
         // Process defaults
         if(is_null($server))    { $server = $_SERVER; }
@@ -67,10 +57,9 @@ class App {
         $this->collector = NULL;    // we don't need it any more
 
         // Set up templates
-        global $jtsm_template_path;
-        $loader = new \Twig_Loader_Filesystem($jtsm_template_path);
+        $loader = new \Twig_Loader_Filesystem($site_root . "skins");
         $this->twig = new \Twig_Environment($loader,
-            ['cache' => JTSM . 'cache',
+            ['cache' => $site_root . 'skins' . DIRECTORY_SEPARATOR . 'cache',
             'debug' => TRUE,
             'auto_reload' => TRUE]
         );
@@ -82,15 +71,6 @@ class App {
         $this->twig->addFunction($fn);
 
     } //constructor
-
-    /**
-     * Interface from templates to the route generator
-     */                                    // VVVVV required by Twig
-    public function generateRoute($routeName, array $values = []) {
-        error_log("For route $routeName with vars ". print_r($values,TRUE));
-        return '/?p=' . $this->generator->gen($routeName, $values);
-            // We use a query parameter rather than the REQUEST_URI
-    } //generateRoute()
 
     /**
      * Dispatches to the request and returns a result
@@ -154,10 +134,26 @@ EOD
         $this->emitter->emit($this->response);
     } //run()
 
-    // === Functions to be overridden in subclasses ========================
+    /**
+     * Return the value of a string query parameter, or NULL.
+     * TODO add QPi, QP<whatever else> for other types
+     * @param $name the name of the query parameter
+     */
+    function QPs($name, $filtering = FILTER_UNSAFE_RAW) {
+        $parms = $this->request->getQueryParams();
 
-    // TODO add a function to create a route generator so the subclass can
-    // choose, e.g., a cached generator
+        if(array_key_exists($name, $parms) && (!is_null($parms[$name]))) {
+            $val = $parms[$name];
+            if(is_string($val) && (strlen($val)<65535)) {
+                // arbitrary length limit
+                $q = filter_var($parms[$name], $filtering);
+                if($q !== FALSE) {  // Valid query
+                    return $q;
+                }
+            }
+        }
+        return NULL;
+    } //QPs
 
     /**
      * Fill in the routes we can respond to.
@@ -207,7 +203,12 @@ EOD
         } //foreach $method
     } //populateRoutes()
 
-    // === Request processing ===
+    // === Functions to be overridden in subclasses ========================
+
+    // TODO add a function to create a route generator so the subclass can
+    // choose, e.g., a cached generator
+
+    // === Request processing
 
     /**
      * Returns the target, the path to be checked against the available routes
@@ -228,91 +229,16 @@ EOD
     // stored in a query parameter.
 
     /**
-     * Return the value of a string query parameter, or NULL.
-     * TODO add QPi, QP<whatever else> for other types
-     * @param $name the name of the query parameter
-     */
-    function QPs($name, $filtering = FILTER_UNSAFE_RAW) {
-        $parms = $this->request->getQueryParams();
+     * Interface from templates to the route generator
+     */                                    // VVVVV required by Twig
+    public function generateRoute($routeName, array $values = []) {
+        error_log("For route $routeName with vars ". print_r($values,TRUE));
+        return '/?p=' . $this->generator->gen($routeName, $values);
+            // We use a query parameter rather than the REQUEST_URI
+    } //generateRoute()
 
-        if(array_key_exists($name, $parms) && (!is_null($parms[$name]))) {
-            $val = $parms[$name];
-            if(is_string($val) && (strlen($val)<65535)) {
-                // arbitrary length limit
-                $q = filter_var($parms[$name], $filtering);
-                if($q !== FALSE) {  // Valid query
-                    return $q;
-                }
-            }
-        }
-        return NULL;
-    } //QPs
 
-    // === Test routes =====================================================
-
-    /**
-     * @route "/"
-     * For some reason, route / (without the "") doesn't parse - Notoj
-     * grabs the at-route tag, but with an empty value.
-     */
-    function root() {
-        $this->response->getBody()->write(
-            $this->twig->render('root.twig.php'));
-    } //root()
-
-    /**
-     * @route /users
-     */
-    function users() {
-        $this->response->getBody()->write(
-            $this->twig->render('users.twig.php')
-        );
-    }
-
-    /**
-     * @route /foo/{id}
-     */
-    function things($vars) {
-        $this->response->getBody()->write("things!\n" .
-            print_r($vars, TRUE));
-    }
-
-    /**
-     * @route /user/{id:\d+}
-     */
-    function user($vars) {
-        $this->response->getBody()->write(
-            $this->twig->render('user.twig.php', $vars));
-    }
-
-    /**
-     * @route /search
-     */
-    function search() {
-        $this->response->getBody()->write("<pre>" .
-            print_r($this->request->getQueryParams(), TRUE) . "</pre>\n");
-        $parms = $this->request->getQueryParams();
-        $vars = [];     // for the template
-
-        $q = $this->QPs('q');
-        if(!is_null($q) && (strlen($q)>0)) {
-            $vars['query'] = $q;
-
-            // Do the search
-            global $jtsm_index_path;
-            $index = Lucene::open($jtsm_index_path);
-            $hits = $index->find($q);
-            $vars['hits'] = $hits;
-            $this->response->getBody()->write("<p>Got " .
-                count($hits) . " hits.</p>\n");
-        } //endif got a query
-
-        $this->response->getBody()->write(
-            $this->twig->render('search.twig.php',$vars));
-    }
 } //App
-
-(new App())->run();
 
 // vi: set ts=4 sts=4 sw=4 et ai: //
 
