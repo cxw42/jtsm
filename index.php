@@ -199,6 +199,8 @@ EOD
         } //foreach $method
     } //populateRoutes()
 
+    // === Request processing ===
+
     /**
      * Returns the target, the path to be checked against the available routes
      *
@@ -212,6 +214,31 @@ EOD
         }
         return $qps['p'];
     } //getTarget()
+
+    // TODO add makeTarget() that will build a target from a route.
+    // It should also support <input type=hidden> if the route is
+    // stored in a query parameter.
+
+    /**
+     * Return the value of a string query parameter, or NULL.
+     * TODO add QPi, QP<whatever else> for other types
+     * @param $name the name of the query parameter
+     */
+    function QPs($name, $filtering = FILTER_UNSAFE_RAW) {
+        $parms = $this->request->getQueryParams();
+
+        if(array_key_exists($name, $parms) && (!is_null($parms[$name]))) {
+            $val = $parms[$name];
+            if(is_string($val) && (strlen($val)<65535)) {
+                // arbitrary length limit
+                $q = filter_var($parms[$name], $filtering);
+                if($q !== FALSE) {  // Valid query
+                    return $q;
+                }
+            }
+        }
+        return NULL;
+    } //QPs
 
     // === Test routes =====================================================
 
@@ -241,27 +268,6 @@ EOD
     }
 
     /**
-     * Return the value of a string query parameter, or NULL.
-     * TODO add QPi, QP<whatever else> for other types
-     * @param $name the name of the query parameter
-     */
-    function QPs($name, $filtering = FILTER_UNSAFE_RAW) {
-        $parms = $this->request->getQueryParams();
-
-        if(array_key_exists($name, $parms) && (!is_null($parms[$name]))) {
-            $val = $parms[$name];
-            if(is_string($val) && (strlen($val)<65535)) {
-                // arbitrary length limit
-                $q = filter_var($parms[$name], $filtering);
-                if($q !== FALSE) {  // Valid query
-                    return $q;
-                }
-            }
-        }
-        return NULL;
-    } //QPs
-
-    /**
      * @route /search
      */
     function search() {
@@ -273,7 +279,15 @@ EOD
         $q = $this->QPs('q');
         if(!is_null($q) && (strlen($q)>0)) {
             $vars['query'] = $q;
-        }
+
+            // Do the search
+            global $jtsm_index_path;
+            $index = Lucene::open($jtsm_index_path);
+            $hits = $index->find($q);
+            $vars['hits'] = $hits;
+            $this->response->getBody()->write("<p>Got " .
+                count($hits) . " hits.</p>\n");
+        } //endif got a query
 
         $this->response->getBody()->write(
             $this->twig->render('search.twig.php',$vars));

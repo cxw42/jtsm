@@ -9,10 +9,19 @@ Search!
 </form>
 
 {% if query is defined %}
+<hr />
 Query: {{ query }}
-{% endif %}
+{% endif %}{# query #}
 
-Back to the <a href="{{gen('users')}}">Users list</a>
+{% if hits is defined %}
+<hr /><h2>Results</h2>
+<ol>
+{% for hit in hits %}
+    <li>[{{ hit.score }}] "{{ hit.title|default('Unknown title') }}", {#
+        #}a {{ hit.world|default('unknown-world') }} resource</li>
+{% endfor %}
+</ol>
+{% endif %}{# hits #}
 
 {# vi: set ts=4 sts=4 sw=4 et ai ff=unix: #}
 
