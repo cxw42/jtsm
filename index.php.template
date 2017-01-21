@@ -1,0 +1,48 @@
+<?php
+
+namespace Base;
+
+define('SITE_ROOT', __DIR__ . DIRECTORY_SEPARATOR);
+
+require SITE_ROOT . 'vendor/autoload.php';
+
+class BaseApp extends \JTSM\App {
+    /* You have access to the following:
+    // HTTP
+    protected $request;     // PSR-7, from Zend Diactoros
+    protected $response;    // ditto
+    protected $emitter;     // \Zend\Diactoros\Response\SapiEmitter
+
+    // Routing
+    protected $generator;   // \FastRoute\RouteGenerator
+
+    // Templating
+    protected $twig;        // \Twig_Environment
+    */
+
+    // === Test routes =====================================================
+
+    /**
+     * @route "/"
+     * For some reason, route / (without the "") doesn't parse - Notoj
+     * grabs the at-route tag, but with an empty value.
+     */
+    function root() {
+        $this->response->getBody()->write(
+            $this->twig->render('root.twig.php'));
+    } //root()
+
+    /**
+     * @route /answer
+     * Don't need the quotes on this one.
+     */
+    function answer() {
+        $this->response->getBody()->write("42!");
+    }
+
+} //BaseApp
+
+(new BaseApp(SITE_ROOT))->run();
+
+// vi: set ts=4 sts=4 sw=4 et ai: //
+

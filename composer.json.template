@@ -1,0 +1,13 @@
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://www.github.com/cxw42/FastRoute"
+        }
+    ],
+    "require": {
+        "devwrench/jtsm": "^0.1"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
