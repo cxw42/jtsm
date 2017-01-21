@@ -1,13 +1,33 @@
 {
+    "name": "devwrench/jtsm",
+    "description": "basic web app framework for PHP 5.4",
+    "keywords": ["framework", "api"],
+    "license": "LGPL-3.0+",
+    "authors": [
+        {
+            "name": "Christopher White",
+            "email": "cxwembedded@gmail.com",
+            "homepage": "http://devwrench.com"
+        }
+    ],
+
+    "autoload": {
+        "psr-4": {
+            "JTSM\\": "src/"
+        },
+        "files": ["src/jtsm.php"]
+    },
+
     "repositories": [
         {
             "type": "vcs",
-            "url": "../FastRoute"
+            "url": "https://github.com/cxw42/FastRoute"
         }
     ],
 
     "require": {
-        "nikic/fast-route": "dev-master",
+        "php": ">=5.4.0",
+        "devwrench/fast-route": "^1.2",
         "crodas/notoj": "^1.4",
         "zendframework/zend-diactoros": "^1.3",
         "twig/twig": "^1.30",

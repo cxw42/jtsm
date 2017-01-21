@@ -1,6 +1,6 @@
 <?php
 
-namespace FRTest;
+namespace JTSM;
 
 define('JTSM', __DIR__ . DIRECTORY_SEPARATOR);
 
