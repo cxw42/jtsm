@@ -183,19 +183,27 @@ EOD
         $this->collector = $r;
         $cls = new \Notoj\ReflectionClass($this);
         foreach($cls->getMethods() as $method) {
+            //error_log("Method " . $method->name);
             $anns = $method->getAnnotations();
             if(!$anns->has('route')) { continue; }
 
             $route = trim($anns->getOne('route')->getArg(0));
-
-            if($anns->has('routemethod')) {
-                $http_method = trim($anns->getOne('routemethod')->getArg(0));
-            } else {
-                $http_method = 'GET';
+            //error_log("  Got -" . $route . "-");
+            if(!is_string($route) || (strlen($route)==0)) {
+                throw new \Exception("Invalid route for " . $method->name);
             }
 
-            $r->addRoute($http_method, $route, $method->getName(),
-                $method->getName());
+            if(!$anns->has('routemethod')) {
+                $http_method = 'GET';
+            } else {
+                $http_method = trim($anns->getOne('routemethod')->getArg(0));
+                if(!is_string($http_method) || (strlen($http_method)==0)) {
+                    throw new \Exception(
+                                "Invalid HTTP method for " . $method->name);
+                }
+            } //endif @routemethod
+
+            $r->addRoute($http_method, $route, $method->name, $method->name);
         } //foreach $method
     } //populateRoutes()
 
@@ -208,11 +216,11 @@ EOD
      * Override in subclasses to change where the target comes from.
      */
     public function getTarget() {
-        $qps = $this->request->getQueryParams();
-        if(!isset($qps['p'])) {
-            throw new \Exception('No query');
+        $p = $this->QPs('p');
+        if($p === NULL) {
+            return "/";     // Default to the root
         }
-        return $qps['p'];
+        return $p;
     } //getTarget()
 
     // TODO add makeTarget() that will build a target from a route.
@@ -241,6 +249,16 @@ EOD
     } //QPs
 
     // === Test routes =====================================================
+
+    /**
+     * @route "/"
+     * For some reason, route / (without the "") doesn't parse - Notoj
+     * grabs the at-route tag, but with an empty value.
+     */
+    function root() {
+        $this->response->getBody()->write(
+            $this->twig->render('root.twig.php'));
+    } //root()
 
     /**
      * @route /users
