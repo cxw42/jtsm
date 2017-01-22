@@ -39,7 +39,6 @@ class App {
         if(is_null($cookie))    { $cookie = $_COOKIE; }
         if(is_null($files))     { $files = $_FILES; }
 
-        //error_log("Howdy!");  // Debugging message to the console
         // Set up HTTP interaction
         $this->request = \Zend\Diactoros\ServerRequestFactory::fromGlobals(
             $server, $get, $post, $cookie, $files
@@ -78,13 +77,6 @@ class App {
     public function run() {
         $httpMethod = $this->request->getMethod();
 
-        // Write the header
-        $this->response->getBody()->write( <<<'EOD'
-<html><head><title>FRTest</title></head><body>
-<pre>
-EOD
-        );
-
         $got_target = FALSE;
         $target = "";
         try {
@@ -111,8 +103,6 @@ EOD
                 case \FastRoute\Dispatcher::FOUND:
                     $handler = $routeInfo[1];
                     $vars = $routeInfo[2];
-                    //$this->response->getBody()->write(
-                    //    "Got route to $handler\n" . print_r($vars, TRUE));
                     $this->$handler($vars);
                     break;
             }
@@ -122,13 +112,6 @@ EOD
             $this->response->getBody()->write('An error occurred: ' .
                 $this->response->getReasonPhrase());
         }
-
-        // Write the trailer
-        $this->response->getBody()->write( <<<'EOD'
-</pre>
-</body></html>
-EOD
-        );
 
         // Fire away!
         $this->emitter->emit($this->response);
@@ -179,12 +162,10 @@ EOD
         $this->collector = $r;
         $cls = new \Notoj\ReflectionClass($this);
         foreach($cls->getMethods() as $method) {
-            //error_log("Method " . $method->name);
             $anns = $method->getAnnotations();
             if(!$anns->has('route')) { continue; }
 
             $route = trim($anns->getOne('route')->getArg(0));
-            //error_log("  Got -" . $route . "-");
             if(!is_string($route) || (strlen($route)==0)) {
                 throw new \Exception("Invalid route for " . $method->name);
             }
@@ -232,7 +213,6 @@ EOD
      * Interface from templates to the route generator
      */                                    // VVVVV required by Twig
     public function generateRoute($routeName, array $values = []) {
-        error_log("For route $routeName with vars ". print_r($values,TRUE));
         return '/?p=' . $this->generator->gen($routeName, $values);
             // We use a query parameter rather than the REQUEST_URI
     } //generateRoute()
