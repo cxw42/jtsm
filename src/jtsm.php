@@ -69,7 +69,16 @@ class App {
             // is_safe: output should be included raw in the html
         $this->twig->addFunction($fn);
 
+        $this->site_init();
     } //constructor
+
+    /**
+     * Your custom initializations.  Override this in subclasses.
+     * Runs at the end of the constructor, after all the protected
+     * fields have been initialized.  Useful, e.g., to add Twig globals.
+     */
+    public function site_init() {
+    } //site_init
 
     /**
      * Dispatches to the request and returns a result
